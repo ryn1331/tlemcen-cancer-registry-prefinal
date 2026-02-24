@@ -17,7 +17,7 @@ serve(async (req) => {
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, serviceRoleKey);
 
-    const { case_id, action, webhook_url } = await req.json();
+    const { case_id, action } = await req.json();
 
     if (!case_id || !action) {
       return new Response(JSON.stringify({ error: "case_id et action requis" }), {
@@ -49,53 +49,10 @@ serve(async (req) => {
       });
     }
 
-    // If webhook_url is provided, forward to n8n
-    let webhookResponse = null;
-    if (webhook_url) {
-      try {
-        const payload = {
-          event: "case_validation",
-          action: newStatus,
-          timestamp: new Date().toISOString(),
-          case: {
-            id: caseData.id,
-            type_cancer: caseData.type_cancer,
-            code_icdo: caseData.code_icdo,
-            stade_tnm: caseData.stade_tnm,
-            date_diagnostic: caseData.date_diagnostic,
-            resultat_anapath: caseData.resultat_anapath,
-            statut: newStatus,
-            notes: caseData.notes,
-          },
-          patient: {
-            nom: caseData.patients?.nom,
-            prenom: caseData.patients?.prenom,
-            sexe: caseData.patients?.sexe,
-            commune: caseData.patients?.commune,
-            date_naissance: caseData.patients?.date_naissance,
-          },
-        };
-
-        const n8nRes = await fetch(webhook_url, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        });
-
-        webhookResponse = {
-          status: n8nRes.status,
-          ok: n8nRes.ok,
-        };
-      } catch (webhookErr: any) {
-        webhookResponse = { error: webhookErr.message };
-      }
-    }
-
     return new Response(
       JSON.stringify({
         success: true,
         case: caseData,
-        webhook: webhookResponse,
       }),
       {
         status: 200,

@@ -3,12 +3,10 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import AppLayout from '@/components/layout/AppLayout';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
-import { Loader2, Shield, Users, CheckCircle, XCircle, Webhook, AlertTriangle, Building2, Stethoscope } from 'lucide-react';
+import { Loader2, Shield, Users, CheckCircle, XCircle, AlertTriangle, Building2, Stethoscope } from 'lucide-react';
 import { Navigate } from 'react-router-dom';
 import { SERVICES_MEDICAUX, SPECIALITES } from '@/lib/wilayas';
 
@@ -34,7 +32,6 @@ export default function Admin() {
   const [users, setUsers] = useState<UserRow[]>([]);
   const [pendingCases, setPendingCases] = useState<PendingCase[]>([]);
   const [loading, setLoading] = useState(true);
-  const [webhookUrl, setWebhookUrl] = useState(() => localStorage.getItem('n8n_webhook_url') || '');
   const [validatingId, setValidatingId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -104,15 +101,11 @@ export default function Admin() {
   const validateCase = async (caseId: string, action: 'valider' | 'rejeter') => {
     setValidatingId(caseId);
 
-    // Save webhook URL
-    if (webhookUrl) localStorage.setItem('n8n_webhook_url', webhookUrl);
-
     try {
       const res = await supabase.functions.invoke('validate-case', {
         body: {
           case_id: caseId,
           action,
-          webhook_url: webhookUrl || null,
         },
       });
 
@@ -121,11 +114,6 @@ export default function Admin() {
       const result = res.data;
       if (result.success) {
         toast.success(`Cas ${action === 'valider' ? 'validé' : 'rejeté'} avec succès`);
-        if (result.webhook?.ok) {
-          toast.success('Webhook n8n déclenché ✓');
-        } else if (result.webhook?.error) {
-          toast.error('Webhook n8n échoué: ' + result.webhook.error);
-        }
         setPendingCases((prev) => prev.filter((c) => c.id !== caseId));
       } else {
         throw new Error(result.error || 'Erreur inconnue');
@@ -160,34 +148,6 @@ export default function Admin() {
             <h1 className="font-display text-xl md:text-2xl font-bold">Administration</h1>
             <p className="text-muted-foreground text-sm">Gestion des utilisateurs et validation des cas</p>
           </div>
-        </div>
-
-        {/* n8n Webhook Config */}
-        <div className="stat-card">
-          <div className="flex items-center gap-2 mb-3">
-            <Webhook size={18} className="text-primary" />
-            <h3 className="font-display font-semibold">Webhook n8n</h3>
-          </div>
-          <div className="flex flex-col sm:flex-row gap-3">
-            <div className="flex-1">
-              <Label htmlFor="webhook">URL du webhook n8n</Label>
-              <Input
-                id="webhook"
-                value={webhookUrl}
-                onChange={(e) => setWebhookUrl(e.target.value)}
-                placeholder="https://votre-instance.n8n.cloud/webhook/..."
-                className="mt-1"
-              />
-            </div>
-            <div className="flex items-end">
-              <Button variant="secondary" onClick={() => { localStorage.setItem('n8n_webhook_url', webhookUrl); toast.success('URL sauvegardée'); }}>
-                Sauvegarder
-              </Button>
-            </div>
-          </div>
-          <p className="text-xs text-muted-foreground mt-2">
-            Chaque validation/rejet déclenchera ce webhook avec les données du cas.
-          </p>
         </div>
 
         {/* Pending Cases */}
